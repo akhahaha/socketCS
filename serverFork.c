@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
 	 struct sigaction sa;		   // for signal SIGCHLD
 
 	 if (argc < 2) {
-		fprintf(stderr,"ERROR, no port provided\n");
+		fprintf(stderr, "ERROR, no port provided\n");
 		exit(1);
 	 }
 	 sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 	if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
 		error("ERROR on binding");
 
-	listen(sockfd,5);
+	listen(sockfd, 5);
 
 	clilen = sizeof(cli_addr);
 
@@ -85,16 +85,16 @@ int main(int argc, char *argv[]) {
 /******** DOSTUFF() *********************
  There is a separate instance of this function
  for each connection.  It handles all communication
- once a connnection has been established.
+ once a connection has been established.
  *****************************************/
 void dostuff (int sock) {
 	int n;
 	char buffer[256];
 
-	bzero(buffer,256);
-	n = read(sock,buffer,255);
+	bzero(buffer, 256);
+	n = read(sock, buffer, 255);
 	if (n < 0) error("ERROR reading from socket");
-	printf("Here is the message: %s\n",buffer);
-	n = write(sock,"I got your message",18);
+	printf("Here is the message: %s\n", buffer);
+	n = write(sock, "I got your message",18);
 	if (n < 0) error("ERROR writing to socket");
 }
