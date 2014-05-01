@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 #include <sys/wait.h>	/* for the waitpid() system call */
 #include <signal.h>	/* signal name macros, and the kill() prototype */
 
@@ -101,7 +102,16 @@ void dostuff (int sock) {
 	printf("Here is the message: %s\n", buffer);
 
 	// parse filename
-	char* start = buffer + 5;
+	char* start = strpbrk(buffer, "GET /");
+	if (start == buffer)
+		start += 5;
+	else {
+		write(sock, "HTTP/1.1 ", 9);
+		write(sock, "500 Internal Error\n", 18-1);
+		error("ERROR request not supported");
+		return ;
+	}
+
 	char* end = strpbrk(start, " HTTP/");
 	int length = end - start;
 	printf("Filename length: %i\n", length);
@@ -110,20 +120,48 @@ void dostuff (int sock) {
 	filename[length] = '\0';
 	printf("Filename: %s\n", filename);
 
-	// TODO: check if file exists
+	// send header lines
+	write(sock, "HTTP/1.1 ", 9);
 
-	// TODO: construct header
+	// Optional TODO: send RFC 1123 date
+	// Optional TODO: send RFC 1123 last-modified
+	// Optional TODO: send Content-Range
+	// Optional TODO: send Content-Length
 
-	// TODO: send header
+	// check if file exists
+	struct stat buf;
+	if (stat(filename, &buf) == 0)
+		write(sock, "200 OK\n", 6-1); // file found
+	else {
+		write(sock, "404 File not found\n", 18-1); // file not found
+		return ;
+	}
+
+	// content language
+	write(sock, "Content-Language: en-US\n", 25-1);
+
+	// check content type
+	char* ext = strrchr(filename, '.');
+	if (ext != NULL) {
+		write(sock, "Content-Type: ", 14);
+
+		if (strpbrk(ext, "html") != NULL)
+			write(sock, "text/html; charset=UTF-8\n", 26-1);
+		else if (strpbrk(ext, "gif") != NULL)
+			write(sock, "image/gif\n", 11-1);
+		else if (strpbrk(ext, "jpg") != NULL)
+			write(sock, "image/jpg\n", 11-1);
+		else if (strpbrk(ext, "jpeg") != NULL)
+			write(sock, "image/jpeg\n", 12-1);
+	}
 
 	// send file
 	FILE* file = fopen(filename, "r");
 	int packet_size;
-	while (packet_size = fread(buffer, 1, 256, file)) {
+	while (packet_size = fread(buffer, 1, 256, file))
 		write(sock, buffer, packet_size);
-		if (n < 0) error("ERROR writing to socket");
-	}
 	if (ferror(file)) error("ERROR reading file");
 
+	if (n < 0) error("ERROR writing to socket");
 	return ;
 }
