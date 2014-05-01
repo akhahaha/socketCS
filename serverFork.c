@@ -9,6 +9,7 @@
 #include <sys/socket.h>	 // definitions of structures needed for sockets, e.g. sockaddr
 #include <netinet/in.h>	 // constants and structures needed for internet domain addresses, e.g. sockaddr_in
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <sys/wait.h>	/* for the waitpid() system call */
 #include <signal.h>	/* signal name macros, and the kill() prototype */
@@ -90,11 +91,25 @@ int main(int argc, char *argv[]) {
 void dostuff (int sock) {
 	int n;
 	char buffer[256];
+	char filename[256];
 
 	bzero(buffer, 256);
+	bzero(filename, 256);
+
 	n = read(sock, buffer, 255);
 	if (n < 0) error("ERROR reading from socket");
 	printf("Here is the message: %s\n", buffer);
+
+	// parse filename
+	char* start = buffer + 5;
+	char* end = strpbrk(start, " HTTP/");
+	int length = end - start;
+	printf("Filename length: %i\n", length);
+
+	strncpy(filename, start, length);
+	filename[length] = '\0';
+	printf("Filename: %s\n", filename);
+
 	n = write(sock, "I got your message",18);
 	if (n < 0) error("ERROR writing to socket");
 }
