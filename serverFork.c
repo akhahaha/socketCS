@@ -110,6 +110,20 @@ void dostuff (int sock) {
 	filename[length] = '\0';
 	printf("Filename: %s\n", filename);
 
-	n = write(sock, "I got your message",18);
-	if (n < 0) error("ERROR writing to socket");
+	// TODO: check if file exists
+
+	// TODO: construct header
+
+	// TODO: send header
+
+	// send file
+	FILE* file = fopen(filename, "r");
+	int packet_size;
+	while (packet_size = fread(buffer, 1, 256, file)) {
+		write(sock, buffer, packet_size);
+		if (n < 0) error("ERROR writing to socket");
+	}
+	if (ferror(file)) error("ERROR reading file");
+
+	return ;
 }
