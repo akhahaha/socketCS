@@ -89,11 +89,11 @@ int main(int argc, char *argv[]) {
  *****************************************/
 void dostuff (int sock) {
 	int n;
-	char buffer[256];
-	char filename[256];
+	char buffer[512];
+	char filename[512];
 
-	bzero(buffer, 256);
-	bzero(filename, 256);
+	bzero(buffer, 512);
+	bzero(filename, 512);
 
 	n = read(sock, buffer, 255);
 	if (n < 0) error("ERROR reading from socket");
