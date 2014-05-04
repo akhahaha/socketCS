@@ -14,8 +14,6 @@
 #include <sys/stat.h>
 #include <sys/wait.h>	/* for the waitpid() system call */
 #include <signal.h>	/* signal name macros, and the kill() prototype */
-
-
 void sigchld_handler(int s) {
 	while(waitpid(-1, NULL, WNOHANG) > 0);
 }
@@ -102,66 +100,72 @@ void dostuff (int sock) {
 	printf("Here is the message: %s\n", buffer);
 
 	// parse filename
-	char* start = strpbrk(buffer, "GET /");
+	char* start = strstr(buffer, "GET /");
 	if (start == buffer)
 		start += 5;
 	else {
 		write(sock, "HTTP/1.1 ", 9);
 		write(sock, "500 Internal Error\n", 18-1);
-		error("ERROR request not supported");
+		error("ERROR request type not supported");
 		return ;
 	}
 
-	char* end = strpbrk(start, " HTTP/");
+	char* end = strstr(start, " HTTP/");
 	int length = end - start;
-	printf("Filename length: %i\n", length);
-
 	strncpy(filename, start, length);
 	filename[length] = '\0';
 	printf("Filename: %s\n", filename);
 
-	// send header lines
+	// begin header lines
 	write(sock, "HTTP/1.1 ", 9);
-
-	// Optional TODO: send RFC 1123 date
-	// Optional TODO: send RFC 1123 last-modified
-	// Optional TODO: send Content-Range
-	// Optional TODO: send Content-Length
 
 	// check if file exists
 	struct stat buf;
-	if (stat(filename, &buf) == 0)
-		write(sock, "200 OK\n", 6-1); // file found
-	else {
-		write(sock, "404 File not found\n", 18-1); // file not found
+	if (length <= 0 || stat(filename, &buf) != 0) {
+		// no file or file not found
+		printf("404: File not found");
+		write(sock, "404 Not Found\n", 15-1);
+		write(sock, "Content-Language: en-US\n", 25-1);
+		write(sock, "Content-Length: 0\n", 19-1);
+		write(sock, "Content-Type: text/html\n", 23-1);
+		write(sock, "Connection: close\n\n", 21-2);
+
 		return ;
 	}
 
-	// content language
+	// file found
+	write(sock, "200 OK\n", 6-1); // file found
 	write(sock, "Content-Language: en-US\n", 25-1);
+	FILE* file = fopen(filename, "r");
 
-	// check content type
-	char* ext = strrchr(filename, '.');
-	if (ext != NULL) {
-		write(sock, "Content-Type: ", 14);
+	// get filesize
+	fseek(file, 0L, SEEK_END);
+	int filesize = (int) ftell(file);
+	fseek(file, 0L, SEEK_SET);
 
-		if (strpbrk(ext, "html") != NULL)
-			write(sock, "text/html; charset=UTF-8\n", 26-1);
-		else if (strpbrk(ext, "gif") != NULL)
-			write(sock, "image/gif\n", 11-1);
-		else if (strpbrk(ext, "jpg") != NULL)
-			write(sock, "image/jpg\n", 11-1);
-		else if (strpbrk(ext, "jpeg") != NULL)
-			write(sock, "image/jpeg\n", 12-1);
-	}
+	// TODO: optional information
+	// send RFC 1123 date
+	// send RFC 1123 last-modified
+	// send Content-Range
+	// send Content-Type
+
+	// send content length
+	sprintf(buffer, "Content-Length: %d\n", filesize);
+	printf("Filesize: %d\n", filesize);
+	write(sock, buffer, strlen(buffer));
+
+	// load file into memory
+	char* filebuf = (char *) malloc(sizeof(char) * filesize);
+	fread(filebuf, 1, filesize, file);
 
 	// send file
-	FILE* file = fopen(filename, "r");
-	int packet_size;
-	while (packet_size = fread(buffer, 1, 256, file))
-		write(sock, buffer, packet_size);
+	write(sock, "Connection: keep-alive\n\n", 26-2);
+	write(sock, filebuf, filesize);
 	if (ferror(file)) error("ERROR reading file");
+	write(sock, "Connection: close\n\n", 21-2);
 
 	if (n < 0) error("ERROR writing to socket");
+	free(filebuf);
+	fclose(file);
 	return ;
 }
